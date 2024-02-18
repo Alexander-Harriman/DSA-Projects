@@ -1,0 +1,289 @@
+---
+title: "DSA 8010 Mini Project 2"
+author: "Alexander Harriman"
+date: "2022-11-14"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Question 1
+
+In this analysis, grocery store data from WinCo and Walmart will be investigated to see if one chain has higher prices than the other.
+
+## Load Data
+
+```{r}
+grocery <- read.csv("grocery_prices2.csv")
+head(grocery)
+```
+
+## Analysis of Raw Data
+
+The dataset contains 29 "Items", each of which are common grocery items. Here is the list of items analyzed:
+
+```{r}
+unique(grocery$Item)
+```
+
+In this study, the difference between the prices for each object will be explored. For the sake of consistency, WinCo prices will be subtracted from Walmart prices.
+
+```{r}
+#Initializing Column
+grocery$difference <- NA
+
+#Function to assign values
+for(i in 1:dim(grocery)[1]){
+  grocery$difference[i] <- grocery$WinCo[i] - grocery$Wal.Mart[i]
+}
+
+grocery$difference
+```
+
+The following boxplot and histogram shows the distribution of the difference in prices. A negative value indicates that WinCo has a cheaper price than Walmart; a positive value indicates the opposite.
+
+```{r}
+boxplot(grocery$difference, main = "Distribution of Difference in Grocery Prices", ylab = "Price Difference", col = "orange")
+hist(grocery$difference, main = "Difference in Grocery Prices", xlab = "Price Difference", col = "purple")
+```
+
+Based on the boxplot above, the differences all remain within an absolute value of 1.00. Based on the histogram, it appears that more prices are cheaper at WinCo than at Walmart, but a plurality of grocery items have a difference in price within 0.25.
+
+## T Test and Confidence Interval for Price Difference
+
+To test if the prices of groceries differ from one store to the other, a one-sample t-test of the price differences will be run. 
+
+The null hypothesis of this test, H0, is **mu = 0, or that the mean difference is 0**. Since the key question behind the analysis focuses only on if one of the brands has higher prices, and not which one, the alternative hypothesis of this test, H1, is **mu != 0, or that the mean difference is not 0**. 
+
+An alpha value of 0.05 will be used for this test. Alongside the results of this test, a 95% confidence interval will be created to both support the test's findings and potentially indicate which brand, if either, is cheaper.
+
+```{r}
+groceryDiffTest <- t.test(grocery$difference, conf.level = 0.95)
+groceryDiffTest
+```
+
+### Results
+
+The T-test returns a test statistic of **T = -2.723**, with a p-value equal to **0.011**. Since this p-value is less than the alpha of 0.05, we reject the null hypothesis.
+
+The 95% confidence interval is **[-0.315, -0.045]**. Since this confidence interval omits our null hypothesis value of 0, we reject the null hypothesis.
+
+## Conclusion
+
+Based on our test and confidence interval, we can conclude with 95% confidence that the price of groceries at one of WinCo or Walmart is cheaper than the other.
+
+Since our confidence interval contains a range that is wholly negative, it is possible that WinCo prices are cheaper than Walmart prices. 
+
+```{r}
+t.test(grocery$difference, alternative = "less")
+```
+
+Since a t-test with an alternative of **mu < 0, or that the mean difference is less than 0** also rejects the null at our alpha level (a p-value of 0.006 being less than 0.05), we can conclude with 95% confidence that WinCo prices are cheaper than Walmart prices.
+
+## Limitations and Assumptions
+
+This test requires the normality assumptions to be kept for both WinCo prices and Walmart prices. 
+
+There are three assumptions that must be met:
+
+1. The data is normal
+2. The data is independent
+3. The variances are equal across groups (homogenous variance)
+
+### Normality Assumptions: Normal Input Data
+
+Both price data vectors will be checked for normality.
+
+```{r, echo = FALSE}
+hist(grocery$WinCo, main = "WinCo Prices", xlab = "Item Price", col = "red")
+hist(grocery$Wal.Mart, main = "Walmart Prices", xlab = "Item Price", col = "lightblue")
+```
+
+Neither chain has a normally distributed price set.
+
+### Independent Data
+
+The Walmart and WinCo data came from a single store in one area: Phoenix. The list of groceries was determined by the data compiler as "a list of several grocery staples". As a result, it does not appear that the data is independent due to the restricted location information and bias in list creation.
+
+### Homogenous Variance
+
+A variance test will show if there is a significant difference in variance between the WinCo and Walmart prices. The same alpha of 0.05 will be used for results.
+
+```{r}
+varTest <- var.test(grocery$WinCo, grocery$Wal.Mart)
+varTest
+```
+
+The p-value of this test is **0.896**, which is greater than 0.05. Thus, there is no evidence at the 95% level to suggest that the variances are different.
+
+
+## Limitation Conclusion
+
+Since the WinCo and Walmart prices are not independently gathered, nor are they normally distributed, a t-test is not the best test to use to answer if the prices between the two are significantly different. Further studies using different tests and/or on different datasets would strengthen the conclusions found in this study.
+
+
+# Question 3
+
+In this study, results of a survey on violence within relationships in rural South Carolina high schools will be examined to see if different races/ethnicities experience a different rate of finishing the survey than others.
+
+## Analysis of Raw Data
+
+The data contains 580 individual high schoolers. The study was handed to these students across all four years of high school.
+
+```{r, echo = FALSE}
+dating <- read.csv("dating_survey.csv")
+head(dating)
+```
+
+Gender and ethnicity information was also tracked alongside the results of the survey. Two genders (male and female) and three ethnicities (Black, White, or Hispanic or other minorities) were recorded.
+
+As a focus of this study, we will focus on results from students labeled as White versus students labeled as Black.
+
+```{r}
+#Filter data down to the two focused ethnicities
+
+datingSubset <- dating[dating$ethnicity != "Hispanic or other minorities",]
+dim(datingSubset)
+```
+
+The filtered data contains 515 students. The mosaic plot below shows the results of the findings, separated by the two ethnicities.
+
+```{r}
+mosaicplot(grade12 ~ ethnicity, data = datingSubset, main = "Relationship Violence Among High School Seniors by Ethnicity", xlab = "Survey Result", ylab = "Ethnicity", col = "red")
+```
+
+The mosaic plot shows a similar rate of "yes" and "no" responses between the two ethnicities. It also appears to show more responses from Black students compared to White students.
+
+## Analysis of the Data
+
+To answer if either ethnicity has a higher rate of loss to follow-up than the other, a two-proportion test will be run on the two.
+
+First, the data will be split by ethnicity.
+
+```{r}
+datingWhite <- dating[dating$ethnicity == "White",]
+datingBlack <- dating[dating$ethnicity == "Black",]
+
+#Check number of rows
+dim(datingWhite)[1]
+dim(datingBlack)[1]
+```
+
+By checking the number of rows for each subset, it is confirmed that more Black students are in our dataset compared to White students, at 286 to 229 respectively.
+
+However, to check the rate of loss to follow-up, the number of students with "NA" responses in their senior year is needed.
+
+```{r}
+lostWhite <- datingWhite[is.na(datingWhite$grade12) == TRUE,]
+lostBlack <- datingBlack[is.na(datingBlack$grade12) == TRUE,]
+
+#Check number of rows
+dim(lostWhite)[1]
+dim(lostBlack)[1]
+```
+
+We see that 39 White students and 49 Black students did not respond to the survey in their senior year, and thus are considered to be lost to follow-up.
+
+## Proportion Test
+
+With the subsets determined, a two-proportion test will be used to determine if there is a significant difference between the rate of loss to follow-up for White students compared to Black students.
+
+The null hypothesis of this test, H0, is **$pi1$ - $pi2$ = 0**, meaning no difference in proportions. The alternative hypothesis of this test, H1, is **$pi1$ - $pi2$ != 0**, meaning there is a difference in proportions. Consdering the study only looks for a difference, and not which group has a greater rate, the alternative hypothesis can remain as "not equal to".
+
+An alpha value of 0.05 will be used for the test.
+
+### Proportion Table
+
+```{r}
+#Create the 2x2 table of counts
+surveyTable <- as.table(rbind(c(dim(lostBlack)[1],dim(lostWhite)[1]),c(dim(datingBlack)[1],dim(datingWhite)[1])))
+
+#Variable Name change
+colnames(surveyTable) <- c("Black","White")
+rownames(surveyTable) <- c("Lost", "Not Lost")
+
+#Create the proportion table
+surveyProp <- prop.table(surveyTable, margin = 1)
+surveyProp
+```
+
+### Proportion Test
+
+```{r}
+surveyTest <- prop.test(surveyTable, conf.level = 0.95)
+surveyTest
+```
+
+## Results and Conclusions
+
+The chi-squared value for this test is nearly 0 under continuity corrections. This chi-squared value results in a p-value of exactly 1, which is greater than 0.05. Therefore, there is no evidence at the 95% level that there is a greater rate of students lost to follow-up on this relationship violence survey for White or Black students compared to the other.
+
+## Assumptions for Model
+
+The two-proportion Z test has three assumptions:
+
+1. The data comes from a random sample
+2. The data each proportion comes from is independent from the other
+3. The two groups are mutually exclusive
+
+### Random Sampling
+
+Our focus group is students that failed to answer the survey during their senior year. There are factors that could go into somebody not answering a survey four years in a row, especially on a topic such as relationship violence.
+
+To check for random sampling, a plot of each answer the students who did not answer as seniors gave as freshmen will be shown. Every student in the study answered at least one time, so their answers will inform random decision making.
+
+```{r}
+#Manipulating the data into a numeric variable for plotting
+
+#Initializing the column
+lostBlack$grade9Num = NA
+lostWhite$grade9Num = NA
+
+barplotFunction <- function(x){
+  for(i in 1:dim(x)[1]){
+    if(x$grade9[i] == "yes"){
+      x$grade9Num[i] = 1
+    }
+    else{
+      x$grade9Num[i] = 0
+    }
+  }
+  return(x)
+}
+
+editedLostBlack <- barplotFunction(lostBlack)
+editedLostWhite <- barplotFunction(lostWhite)
+
+
+#Plot the barplots
+library(ggplot2)
+
+ggplot(editedLostBlack, aes(x = grade9)) + geom_bar(fill = "purple") + xlab("Grade 9 Answers") + ggtitle("Freshmen Responses Amongst Black Students Lost to Follow-Up")
+
+ggplot(editedLostWhite, aes(x = grade9)) + geom_bar(fill = "blue") + xlab("Grade 9 Answers") + ggtitle("Freshmen Responses Amongst White Students Lost to Follow-Up")
+```
+
+Only two of the Black students who did not answer as a senior and only one of the White students who did not answer as a senior answered "yes" as a freshman. Since it appears the data is unbiased towards those who said yes, along with the randomness of the original data, we can assume the data is randomly sampled.
+
+### Independent Proportions
+
+The overall data set is not independent due to the same people getting surveyed over a few years. However, looking solely at the senior answers, these are independent from each other.
+
+### Mutually Exclusive
+
+Since the answers of the survey are either yes or no, the data is mutually exclusive. 
+
+## Results
+
+Since the two-proportion Z test assumptions are met, we conclude that there is no difference in the proportion of white and black students who were lost to follow-up on the relationship violence study.
+
+## Limitations
+
+The model only focuses on White students and Black students, and did not include information on Hispanic or other minorities. Future studies can include these ethnicities alongside those studied here.
+
+Future studies can also expand on the research to see why so many students were lost to follow-up in an attempt to decrease the proportion of these students in other surveys like this one. 

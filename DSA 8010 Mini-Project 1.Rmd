@@ -1,0 +1,160 @@
+---
+title: "DSA 8010 Mini-Project 1"
+author: "Alexander Harriman"
+date: "September 15 2022"
+output: 
+  html_document:
+    toc: TRUE
+    theme: darkly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Summary of Investigation
+
+This study focuses on the factors that affect rent prices in Germany from September 2018 to February 2020 to answer if rents have increased over time. Other factors, such as the number of photos in a rental listing and a building's age, will also be investigated. The focus of this study will be on factors that do not naturally affect price, such as room space and any amenities.
+
+The dataset contains 410 listings taken across four separate dates: 55 from September 2018, 117 from May 2019, 122 from October 2019, and 116 from February 2020. 
+
+# Analysis of Variables
+
+```{r, echo = FALSE}
+rents <- read.csv("immosc_2.csv")
+
+boxplot(totalRent ~ date, data = rents, xlab = "Date Obtained", ylab = "Rent Prices")
+```
+
+From the boxplots, the average rent price appears even, with the exception of a dip in price in May 2019. Higher outliers are present in February 2020, and the largest rent prices are larger for all date ranges compared to 2018.
+
+```{r, echo = FALSE}
+hist(rents$picturecount, xlab = "Picture Count", main = "Histogram of Pictures Posted with Rental Listings", labels = TRUE)
+```
+
+Most rental listings contain between 0 and 20 photos, with 41 listings containing more than 20. A few extreme outliers exist in the data; 5 listings have 35 photos or more.
+
+```{r, echo = FALSE}
+plot(totalRent ~ floor, data = rents, xlab = "Floor of Rental Unit", ylab = "Price")
+```
+
+Most of the units are on the bottom 5 floors of their respective buildings (with 0 representing the ground floor, or US floor 1). 5 units came from floor 7 or higher, but the only extreme outlier comes from the 14th floor unit.
+
+# Rent Price Analysis: Standard Linear Model
+
+To see what factors may indirectly affect the price of a rental, we will use a standard first-order multiple regression model to plot our variables. We will focus on four indirect factors: date investigated, number of photos of the rental, the rental's floor, and the rental's age.
+
+For the date acquired, September 2018 is used as the baseline. 
+```{r, echo = FALSE}
+indirectModel <- lm(totalRent ~ yearConstructed + picturecount + floor + date, data = rents)
+summary(indirectModel)
+```
+Our model has a p-value of 3.546E-10 on our F-statistic; since this p-value is below an alpha of 0.05, this suggests that our model does have a signficant trend at the 95% level.
+
+The equation found is **Price = 2.6732X1 + 18.3944X2 + 4.1365X3 - 27.3759X4 + 23.7841X5 + 55.9959X6**, where X1 represents the year constructed, X2 represents the picture count, X3 represent the floor the space is on, and X4-X6 represent the date obtained (X4 = 1 for May 2019, X5 = 1 for October 2019, and X6 = 1 for February 2020).
+
+## Inferential Analysis
+
+For every variable, the null hypothesis, H0, is that the slope is 0 ($beta$x = 0) and the alternate hypothesis, H1, is that the slope is not 0 ($beta$x != 0).
+
+The model finds a p-value of 2.1E-5 for year constructed and 4.61E-9 for picture count. Since both of these p-values are less than our alpha of 0.05, we can conclude that year constructed and picture count both significantly affect rent prices at the 95% level for our dataset.
+
+However, the rest of our variables have p-values above 0.05 (.785 for floor, .738 for May 2019, .769 for October 2019, and .491 for February 2020). Thus, we fail to reject the null hypothesis and conclude that these variables do not signficantly affect rent prices at the 95% level.
+
+The model has an R^2 value of 0.137 and an adjusted R^2 of 0.123, suggesting a weak positive correlation.
+
+## Findings
+
+Based on the model, for every year closer to the present a unit is built, the rent increases by **2.67 euros per month**. Units on higher floors add **4.14 euros per month**, albeit with a weak relationship to back it up.
+
+Pictures are worth both a thousand words and **18.39 euros per month** for each photo added to a listing.
+
+As for dates, the coefficient for rent prices increase from -27.38 in May 2019 to 56.00 in February 2020. However, with the lack of significance for the date variable, we can not conclude that rent prices have gone up over time from this model alone.
+
+# Interaction Tests
+
+The next step of the analysis is to check for interactions between date obtained and other variables. This may reveal specific trends amongst renters that may not be revealed in a simple linear regression, or help support the claims of our linear model.
+
+An ANOVA test using all regression factors and their interactions will be ran to check our trends. The null hypothesis, H0, is that all interaction slopes are 0, while the alternate hypothesis, H1, is that at least one of the interaction slopes are not 0.
+
+```{r, echo = FALSE}
+interactionModel <- lm(totalRent ~ yearConstructed * date + picturecount * date + floor * date, data = rents)
+anova(indirectModel, interactionModel)
+```
+
+The p-value of the ANOVA test is .177, and since this is greater than 0.05, we fail to reject the null hypothesis. Thus, at the 95% level, the slopes of the interaction variables are 0, and interactions do not exist between the variables and date.
+
+# Normal Distribution Tests
+
+In order to use a linear model, we must check to see if the data is normally distributed. If it is not, then more data would be needed to confirm the results of the linear model.
+
+```{r, echo = FALSE}
+plot(indirectModel)
+```
+
+Normal Distribution Tests:
+1. We will assume that the random errors have a mean of 0
+2. The Residuals vs. Leverage Plot does not appear to be linear, nor evenly distributed between halves of the plot
+3. The Normal Q-Q Plot is not linear
+4. It is unclear how the data was acquired
+
+Therefore, a linear regression model is not a good model to use for this data.
+
+# Checking for Correlations
+
+Variable correlations may also affect the outcomes. Therefore, we will create correlation matrices for the variables in our model to check for any variable correlations.
+
+## Correlation Coefficients
+
+NA values must be omitted here to get a clear correlation. From there, we can create the correlation matrix and find our coefficients.
+
+27 listings have an NA value for at least one of the four main columns (picture count, year constructed, floor, and total rent). The entire row for these instances will be removed, which will take away real data points from other columns within these rows. This will add some bias to the data by removing all partial entries in our dataset.
+
+```{r, echo = FALSE}
+#Clear out NA values
+rents <- rents[is.na(rents$picturecount) == FALSE,]
+rents <- rents[is.na(rents$yearConstructed) == FALSE,]
+rents <- rents[is.na(rents$floor) == FALSE,]
+rents <- rents[is.na(rents$totalRent) == FALSE,]
+
+
+correlations <- rents[,c("picturecount", "yearConstructed", "floor",  "totalRent")]
+
+correlationMatrix <- cor(correlations)
+
+correlationMatrix
+```
+
+Total rent and picture count has the largest coefficient at 0.3, which matches our linear model's findings. Similarly, year constructed has the second largest coefficient, and floor, which was not statistically significant in our model, has a coefficient close to 0.
+
+None of the three indepdent variables have a strong correlation to each other; all pairs have coefficients less than 0.1.
+
+## Find the P-values for the correlations
+
+The coefficients alone do not tell the full story; with the p-values, we can see a clearer picture of the strength of the correlation.
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+library(Hmisc)
+
+pCorrelation <- rcorr(as.matrix(correlations))
+pCorrelation
+```
+## Correlation Findings
+
+There appears to be a correlation between the total rent and the picture count, along with a correlation between the total rent and the year constructed. This lines up with our linear model.
+
+We do see a correlation between floor and picture count at the 80% significance level; while this is not a strong significance level, this correlation could affect results of any model using these variables.
+
+
+# Conclusion
+
+In conclusion, there does not appear to be any correlation between the date and price of a rental unit. Therefore, rent prices do not appear to have increased over time in Germany from September 2018 to February 2020.
+
+The model does suggest that the age of a rental unit and the number of photos the rental unit's listing comes with does affect prices in a positive manner.
+
+However, the low R^2 of the linear model, combined with the model failing normal distribution tests, suggest that either a different model would be best used for these variables, or that additional data would be necessary to confirm the findings.
+
+The small correlation between the floor and picture count variable also leads to the model's limitations. Further investigation would be needed to make any concrete conclusions.
+
+
